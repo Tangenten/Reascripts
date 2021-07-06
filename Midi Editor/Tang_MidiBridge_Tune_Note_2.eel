@@ -1,0 +1,59 @@
+@import JSFXframework.eel
+
+function midiOut(data0,data1,data2)
+(
+  ValueOut(+ (data0 << 16) + (data1 << 8) + (data2 << 0));
+);
+
+function onValueIn(value) local(cnr,cval)
+(
+debug = 1;
+cnr = (value >> 8) & 0xFF;
+cval = value & 0xFF;
+
+testCval = cval;
+testCnr = cnr;
+testValue = value;
+
+testCval > 1 && testCnr > 1 && testValue < 11080128 ? (  
+
+noteCount = noteCount + 1;
+take = MIDIEditor_GetTake(MIDIEditor_GetActive());
+MIDI_CountEvts(take, notes, ccs, sysex);
+
+j = 0;
+selCount = -1;
+
+while(
+MIDI_GetNote(take, j, sel, muted, start, end, chan, pitch, vel);
+sel == 1 ? (
+selCount = selCount + 1;
+
+noteCount == selCount ? (
+MIDI_SetNote(take, j, sel, muted, start, end, chan, cnr, value); 
+);      
+);
+
+j += 1;
+j < notes;
+);
+
+selCount = -1;
+);
+testCval < 1 && testValue < 11080128 ? (  
+noteCount = noteCount - 1;
+);
+);
+
+
+function setup()
+(
+noteCount = -1;
+);
+
+function looper()
+(
+  ToConsole("");
+);
+
+fwInitialize("setup","","onValueIn");

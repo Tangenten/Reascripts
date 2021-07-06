@@ -1,0 +1,258 @@
+///TEMPLATE for mouse dependant position actions by ReNo Mellow. Thanks to Breeder for the golden starting point!
+
+function action (param)
+(  
+Main_OnCommand(param,0);
+);
+
+function sws (param)
+(  
+Main_OnCommand(NamedCommandLookup(param), 0);
+);
+
+function midi (param)
+(  
+MIDIEditor_LastFocused_OnCommand(param,0);
+);
+
+function midisws (param)
+(  
+MIDIEditor_LastFocused_OnCommand(NamedCommandLookup(param), 0);
+);
+
+Undo_BeginBlock();
+
+// Call BR_GetMouseCursorContext API from SWS to get current details for stuff under mouse cursor
+extension_api("BR_GetMouseCursorContext", #window, #segment, #details);
+overTimeSel = 0;
+
+// Get time selection info
+GetSet_LoopTimeRange2(0, 0, 0, tStart, tEnd, 0);
+(tStart != tEnd) ?
+(
+    mousePos = extension_api("BR_GetMouseCursorContext_Position"); // call this only after calling BR_GetMouseCursorContext to obtain data for current mouse position
+    mousePos >= tStart && mousePos <= tEnd ? overTimeSel = 1;
+);
+
+/////////////////////////////// USER EDIT START HERE ///////////////////////////
+
+// If mouse is over Transport , execute this
+ !strcmp(#window, "transport") ?
+(
+  action(65535);
+)
+
+// If mouse is over TCP track, execute this
+: !strcmp(#window, "tcp") && !strcmp(#segment, "track") ?
+(
+  action(65535);
+)
+// If mouse is over empty tcp, execute this
+: !strcmp(#window, "tcp") && !strcmp(#segment, "empty") ?
+(
+  action(65535);
+)
+// If mouse is over ECP , execute this
+: !strcmp(#window, "tcp") && !strcmp(#segment, "envelope") ?
+(
+  action(65535);
+)
+
+// If mouse is over MCP Track , execute this
+: !strcmp(#window, "mcp") && !strcmp(#segment, "track") ?
+(
+  action(65535);
+) 
+// If mouse is over MCP Empty , execute this
+: !strcmp(#window, "mcp") && !strcmp(#segment, "empty") ?
+(
+  action(65535);
+)
+
+// If mouse is over region lane , execute this
+: !strcmp(#window, "ruler") && !strcmp(#segment, "region_lane") ?
+(
+  action(65535);
+)
+// If mouse is over Marker lane , execute this
+: !strcmp(#window, "ruler") && !strcmp(#segment, "marker_lane") ?
+(
+  action(65535);
+)
+// If mouse is over Tempo lane , execute this
+: !strcmp(#window, "ruler") && !strcmp(#segment, "tempo_lane") ?
+(
+  action(65535);
+)
+
+// If mouse is over Timeline , execute this
+: !strcmp(#window, "ruler") && !strcmp(#segment, "timeline") ?
+(
+  action(65535);
+)
+
+// If mouse is over arrange empty track area, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "track") && !strcmp(#details, "empty") ?
+(
+  action(65535);
+)
+
+// If mouse is over an item, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "track") && !strcmp(#details, "item") ?
+(
+get_action_context(filename,sectionid,cmdid,mode,resolution,val);
+
+sel_Item =  extension_api("BR_GetMouseCursorContext_Item");
+sel_Item_Pos = GetMediaItemInfo_Value( sel_Item, "D_POSITION");
+sel_Item_Length = GetMediaItemInfo_Value( sel_Item, "D_LENGTH");
+
+nudge_Length = 0.005;
+
+extension_api("BR_GetMouseCursorContext_Position") < (sel_Item_Pos + (sel_Item_Length / 3)) ?
+(
+val < -1 ? ( 
+      extension_api("BR_SetItemEdges", sel_Item, sel_Item_Pos - nudge_Length, sel_Item_Pos + Sel_Item_Length);
+    );
+val > 1 ? ( 
+      extension_api("BR_SetItemEdges", sel_Item, sel_Item_Pos + nudge_Length, sel_Item_Pos + Sel_Item_Length);
+    );
+);
+extension_api("BR_GetMouseCursorContext_Position") > (sel_Item_Pos + (sel_Item_Length / 3)) && extension_api("BR_GetMouseCursorContext_Position") < (sel_Item_Pos + (2 *(sel_Item_Length / 3))) ?
+(
+val < -1 ? ( 
+      SetMediaItemInfo_Value( sel_Item, "D_POSITION", sel_Item_Pos - nudge_Length);
+    );
+val > 1 ? ( 
+      SetMediaItemInfo_Value( sel_Item, "D_POSITION", sel_Item_Pos + nudge_Length);
+    );
+);
+extension_api("BR_GetMouseCursorContext_Position") > (sel_Item_Pos + 2 *((sel_Item_Length / 3))) ?
+(
+val < -1 ? ( 
+      extension_api("BR_SetItemEdges", sel_Item, sel_Item_Pos, sel_Item_Pos + sel_Item_Length - nudge_Length);
+    );
+val > 1 ? ( 
+      extension_api("BR_SetItemEdges", sel_Item, sel_Item_Pos, sel_Item_Pos + sel_Item_Length + nudge_Length);
+    );
+);
+
+
+
+)
+// If mouse is over an item stretch marker, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "track") && !strcmp(#details, "item_stretch_marker") ?
+(
+  action(65535);
+)
+
+// If mouse is over an envelope point in the track lane, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "track") && !strcmp(#details, "env_point") ?
+(
+  get_action_context(filename,sectionid,cmdid,mode,resolution,val);
+  
+  val < -1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVDOWN"),0);
+      );
+  val > 1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVUP"),0);
+      );
+)
+
+// If mouse is over an envelope segment in the track lane, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "track") && !strcmp(#details, "env_segment") ?
+(
+  get_action_context(filename,sectionid,cmdid,mode,resolution,val);
+  
+  val < -1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVDOWN"),0);
+      );
+  val > 1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVUP"),0);
+      );
+)
+
+// If mouse is over an empty envelope, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "envelope") && !strcmp(#details, "empty") ?
+(
+  get_action_context(filename,sectionid,cmdid,mode,resolution,val);
+
+  val < -1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVDOWN"),0);
+      );
+  val > 1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVUP"),0);
+      );
+)
+
+// If mouse is over an envelope point, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "envelope") && !strcmp(#details, "env_point") ?
+(
+  get_action_context(filename,sectionid,cmdid,mode,resolution,val);
+  
+  val < -1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVDOWN"),0);
+      );
+  val > 1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVUP"),0);
+      );
+)
+
+// If mouse is over an envelope segment, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "envelope") && !strcmp(#details, "env_segment") ?
+(
+  get_action_context(filename,sectionid,cmdid,mode,resolution,val);
+  
+  val < -1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVDOWN"),0);
+      );
+  val > 1 ? ( 
+        Main_OnCommand(NamedCommandLookup("_FNG_ENVUP"),0);
+      );
+)
+
+// If mouse is over an empty arrange area, execute this
+: !strcmp(#window, "arrange") && !strcmp(#segment, "empty")  ?
+(
+  action(65535);
+)
+
+
+/// MIDI ////////////////////////////////////////////////////
+
+
+// If mouse is over MIDI Editor Ruler, execute this
+: !strcmp(#window, "midi_editor") && !strcmp(#segment, "ruler")  ?
+(
+  action(65535);
+)
+
+// If mouse is over MIDI Editor Piano, execute this
+: !strcmp(#window, "midi_editor") && !strcmp(#segment, "piano")  ?
+(
+  action(65535);
+)
+
+// If mouse is over MIDI Editor Notes area, execute this
+: !strcmp(#window, "midi_editor") && !strcmp(#segment, "notes")  ?
+(
+  action(65535);
+)
+
+// If mouse is over MIDI CC selector, execute this
+: !strcmp(#window, "midi_editor") && !strcmp(#segment, "cc_lane") && !strcmp(#details, "cc_selector") ?
+(
+  action(65535);
+)
+
+// If mouse is over MIDI CC lane, execute this
+: !strcmp(#window, "midi_editor") && !strcmp(#segment, "cc_lane") && !strcmp(#details, "cc_lane") ?
+(
+  action(65535);
+)
+
+;
+UpdateArrange();
+
+/////Don't forget the name
+Undo_EndBlock("Horizontal Wheel", 0);
+

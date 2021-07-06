@@ -1,0 +1,189 @@
+@import JSFXframework.eel
+
+function round(value) local(y)
+(
+y = floor(value + 0.5);
+);
+
+function hertzToPitch(hz) local(pitchName)(
+  A4 = 440;
+  C0 = 16.35;
+  
+  array = 10000; // this is in EEL normal-memory, not string space -- need to make sure it doesn't collide with other memory your script uses
+  mem_set_values(name, "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B");
+
+  input = 12 * (log(hz / C0) / log(2));
+  h = round(input);
+  octave = floor(h / 12);
+  n = h % 12;
+  pitchName = name[n+1] + octave;
+);
+
+function hertzToMidi(hz) local(pitchNumber) (
+  A4 = 440;
+  C0 = 16.35;
+  
+  array = 10000; // this is in EEL normal-memory, not string space -- need to make sure it doesn't collide with other memory your script uses
+  mem_set_values(name, "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B");
+
+  input = 12 * (log(hz / C0) / log(2));
+  h = round(input);
+  octave = floor(h / 12);
+  n = h % 12;
+  pitchNumber = (n) + ((octave+1) * 12);
+);
+
+function GetSourceItemFrequencyAtPosition(take, pos) local(hz) (
+  source = GetMediaItemTake_Source(take);
+  nch = GetMediaSourceNumChannels(source);
+  ns = 1;
+  buf = 1000;
+  rv = GetMediaItemTake_Peaks(take, 1000.0, pos, nch, ns, 115, buf);
+  spl = buf[nch*ns*2 + 1];
+  hz = spl&0x7fff;
+);
+
+function onValueIn(value) local(cnr,cval)
+(
+  //Init
+  cnr = (value >> 8) & 0xFF; //Note number
+  cval = value & 0xFF; //Velocity
+  value = value; //Used to seperate notes from rest off the midi cc's
+  
+  //Debug Data, Code doenst work without this for some reason
+  debug = 1;
+  testCval = cval;
+  testCnr = cnr;
+  testValue = value;
+
+  //Start
+
+  GetPlayState() != 5 && testCval > 1 && testCnr > 1 && testValue < 11080128 ? (  //If input midi is a Note On value and not currently recording
+
+    noteCount = noteCount + 1;
+    take = GetActiveTake(GetSelectedMediaItem(0,0));
+    
+    isMidi = TakeIsMIDI(take);
+    
+    isMidi == 1 ? (
+        MIDI_CountEvts(take, notes, ccs, sysex);
+        MIDI_Sort( take );
+        
+        j = 0;
+        selCount = 0;
+        while(
+          MIDI_GetNote(take, j, sel, muted, start, end, chan, pitch, vel);
+          sel == 1 ? (
+          selCount = selCount + 1;
+            noteCount == selCount ? (
+              MIDI_SetNote(take, j, sel, muted, start, end, chan, cnr, value,1); 
+              noteIndex = j;
+            ); 
+            );
+          j += 1;
+          j < notes;
+        );
+      
+      selCount == 0 ? ( //If there are no selected notes
+        temp = 0;
+      ); 
+      
+      selCount == noteCount ? ( //Process the current note
+        temp = 0;
+      );
+      
+      selCount < noteCount && selCount != 0 ? ( //If number of notes held down are more than the selected notes, insert note  
+        MIDI_GetNote(take, noteIndex, sel, muted, start, end, chan, pitch, vel);
+        MIDI_InsertNote( take, 1, 0, start, end, chan, cnr, value, 1 );
+      );
+      
+      MIDI_Sort(take);
+    );
+    
+    isMidi == 0 ? (
+    
+      itemCount = CountSelectedMediaItems(0);
+      j = 0;
+      selCount = 0;
+      while(
+        selCount = selCount + 1;
+          noteCount == selCount ? (
+            curItem = GetSelectedMediaItem(0,j);
+            curTake = GetActiveTake(curItem);
+            
+            itemPos = GetMediaItemInfo_Value( curItem, "D_POSITION" );
+            itemLength = GetMediaItemInfo_Value( curItem,"D_LENGTH" );
+                
+            pos = itemPos + (itemLength / 4);
+            
+            freq = GetSourceItemFrequencyAtPosition( curTake, pos );
+            pitchName = hertzToPitch(freq);
+            pitchNumber = hertzToMidi(freq);
+            
+            toShift = 0;
+            pitchNumber > testCnr ? (
+              toShift = pitchNumber - testCnr;
+              toShift = toShift - (toShift * 2);
+            );
+            
+            pitchNumber < testCnr ? (
+              toShift = testCnr - pitchNumber;
+            );
+            
+            curPitch = GetMediaItemTakeInfo_Value( curTake, "D_PITCH" );
+            SetMediaItemTakeInfo_Value(curTake,"D_PITCH", curPitch + toShift);
+            UpdateItemInProject(GetSelectedMediaItem(0,j));
+          ); 
+        j += 1;
+        j < itemCount;
+      );
+    
+    selCount == 0 ? ( //If there are no selected notes
+      temp = 0;
+    ); 
+    
+    selCount == noteCount ? ( //Process the current note
+      temp = 0;
+    );
+    
+    selCount < noteCount && selCount != 0 ? ( //If number of notes held down are more than the selected notes, insert note  
+      temp = 0;
+    );
+    
+      
+    );
+    
+  UpdateItemInProject(GetSelectedMediaItem(0,0));
+  );
+  
+  GetPlayState() != 5 && testCval < 1 && testValue < 11080128 ? ( //If midi input is a note off value and not currently recording
+    noteCount = noteCount - 1; 
+    MIDI_Sort(take);
+    UpdateItemInProject(GetSelectedMediaItem(0,0));   
+  );
+);
+
+
+function setup() //Runs Once at Startup
+(
+  noteCount = 0;
+);
+
+function exit() //Runs Once at Exit
+(
+  ToConsole("");
+);
+
+function looper() //Runs Continously as a Loop Until Scripts Ended
+(
+  ToConsole("");
+);
+
+function midiOut(data0,data1,data2) // Sends Midi to the JSFX Bridge, Which gets sent out to the track
+(
+  ValueOut(+ (data0 << 16) + (data1 << 8) + (data2 << 0));
+);
+
+
+fwInitialize("setup","","onValueIn"); //Runs functions, leave empty to ignore
+exit();

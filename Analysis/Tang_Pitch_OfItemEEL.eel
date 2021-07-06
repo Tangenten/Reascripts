@@ -1,0 +1,60 @@
+function round(value) local(y)
+(
+y = floor(value + 0.5);
+);
+
+function hertzToPitch(hz) local(pitchName)(
+  A4 = 440;
+  C0 = 16.35;
+  
+  array = 10000; // this is in EEL normal-memory, not string space -- need to make sure it doesn't collide with other memory your script uses
+  mem_set_values(name, "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B");
+
+  input = 12 * (log(hz / C0) / log(2));
+  h = round(input);
+  octave = floor(h / 12);
+  n = h % 12;
+  pitchName = name[n+1] + octave;
+);
+
+function hertzToMidi(hz) local(pitchNumber) (
+  A4 = 440;
+  C0 = 16.35;
+  
+  array = 10000; // this is in EEL normal-memory, not string space -- need to make sure it doesn't collide with other memory your script uses
+  mem_set_values(name, "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B");
+
+  input = 12 * (log(hz / C0) / log(2));
+  h = round(input);
+  octave = floor(h / 12);
+  n = h % 12;
+  pitchNumber = (n) + ((octave+1) * 12);
+);
+
+function GetSourceItemFrequencyAtPosition(take, pos) local(hz) (
+  source = GetMediaItemTake_Source(take);
+  nch = GetMediaSourceNumChannels(source);
+  ns = 1;
+  buf = 1000;
+  rv = GetMediaItemTake_Peaks(take, 1000.0, pos, nch, ns, 115, buf);
+  spl = buf[nch*ns*2 + 1];
+  hz = spl&0x7fff;
+);
+
+item = GetSelectedMediaItem(0,0);
+take = GetActiveTake(item);
+  
+//pos = reaper.GetCursorPosition()
+    
+itemPos = GetMediaItemInfo_Value( item, "D_POSITION" );
+itemLength = GetMediaItemInfo_Value( item,"D_LENGTH" );
+    
+pos = itemPos + (itemLength / 4);
+    
+freq = GetSourceItemFrequencyAtPosition( take, pos );
+pitchName = hertzToPitch(freq);
+pitchNumber = hertzToMidi(freq);
+
+ 
+
+

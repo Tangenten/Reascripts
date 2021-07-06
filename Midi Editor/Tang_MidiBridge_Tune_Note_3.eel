@@ -1,0 +1,87 @@
+@import JSFXframework.eel
+
+function onValueIn(value) local(cnr,cval)
+(
+  //Init
+  cnr = (value >> 8) & 0xFF; //Note number
+  cval = value & 0xFF; //Velocity
+  value = value; //Used to seperate notes from rest off the midi cc's
+  
+  //Debug Data, Code doenst work without this for some reason
+  debug = 1;
+  testCval = cval;
+  testCnr = cnr;
+  testValue = value;
+
+  //Start
+
+  GetPlayState() != 5 && testCval > 1 && testCnr > 1 && testValue < 11080128 ? (  //If input midi is a Note On value and not currently recording
+
+    noteCount = noteCount + 1;
+    take = GetActiveTake(GetSelectedMediaItem(0,0));
+    MIDI_CountEvts(take, notes, ccs, sysex);
+    MIDI_Sort( take );
+    
+    j = 0;
+    selCount = 0;
+    while(
+      MIDI_GetNote(take, j, sel, muted, start, end, chan, pitch, vel);
+      sel == 1 ? (
+      selCount = selCount + 1;
+        noteCount == selCount ? (
+          MIDI_SetNote(take, j, sel, muted, start, end, chan, cnr, value,1); 
+          noteIndex = j;
+        ); 
+        );
+      j += 1;
+      j < notes;
+    );
+
+  selCount == 0 ? ( //If there are no selected notes
+    temp = 0;
+  ); 
+  
+  selCount == noteCount ? ( //Process the current note
+    temp = 0;
+  );
+
+  selCount < noteCount && selCount != 0 ? ( //If number of notes held down are more than the selected notes, insert note  
+    MIDI_GetNote(take, noteIndex, sel, muted, start, end, chan, pitch, vel);
+    MIDI_InsertNote( take, 1, 0, start, end, chan, cnr, value, 1 );
+  );
+
+  MIDI_Sort(take);
+  UpdateItemInProject(GetSelectedMediaItem(0,0));
+  );
+  
+  GetPlayState() != 5 && testCval < 1 && testValue < 11080128 ? ( //If midi input is a note off value and not currently recording
+    noteCount = noteCount - 1; 
+    MIDI_Sort(take);
+    UpdateItemInProject(GetSelectedMediaItem(0,0));   
+  );
+);
+
+
+function setup() //Runs Once at Startup
+(
+  noteCount = 0;
+);
+
+function exit() //Runs Once at Startup
+(
+  ToConsole("");
+);
+
+function looper() //Runs Continously as a Loop Until Scripts Ended
+(
+  ToConsole("");
+);
+
+function midiOut(data0,data1,data2) // Sends Midi to the JSFX Bridge, Which gets sent out to the track
+(
+  ValueOut(+ (data0 << 16) + (data1 << 8) + (data2 << 0));
+);
+
+
+fwInitialize("setup","","onValueIn"); //Runs functions, leave empty to ignore
+exit();

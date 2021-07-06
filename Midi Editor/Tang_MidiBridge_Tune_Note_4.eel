@@ -1,0 +1,96 @@
+@import JSFXframework.eel
+
+function midiOut(data0,data1,data2)
+(
+  ValueOut(+ (data0 << 16) + (data1 << 8) + (data2 << 0));
+);
+
+function onValueIn(value) local(cnr,cval)
+(
+debug = 1;
+cnr = (value >> 8) & 0xFF;
+cval = value & 0xFF;
+testCval = cval;
+testCnr = cnr;
+testValue = value;
+
+take = MIDIEditor_GetTake(MIDIEditor_GetActive());
+MIDI_CountEvts(take, notes, ccs, sysex);
+
+testCval > 1 && testCnr > 1 && testValue < 11080128 ? (  
+
+  noteCount = noteCount + 1;
+
+  j = 0;
+  selCount = 0;
+  while(
+    MIDI_GetNote(take, j, sel, muted, start, end, chan, pitch, vel);
+    sel == 1 ? (
+      selCount = selCount + 1;
+
+      );
+      noteCount == selCount ? (
+        MIDI_SetNote(take, j, sel, muted, start, end, chan, cnr, value); 
+      );
+    j += 1;
+    j < notes;
+  );
+
+  selCount == 0 ? (
+    GetSet_LoopTimeRange2( 0, 0, 0, startOut, endOut, 0 );
+    notePPQStart = MIDI_GetPPQPosFromProjTime( take, startOut );
+    notePPQEnd = MIDI_GetPPQPosFromProjTime( take, endOut );
+  
+    notePPQStart < 1 ? (
+      notePPQStart =MIDI_GetPPQPosFromProjTime( take,  GetCursorPosition(); );
+      //extension_api("BR_GetMidiTakeTempoInfo", take, ignoreProjTempo, bpm, num, den );
+      bpm = Master_GetTempo();
+      noteLength = 60/bpm;
+      noteStart = GetCursorPositionEx(0);
+      notePos =  noteStart + noteLength;
+      notePPQEnd = MIDI_GetPPQPosFromProjTime( take, notePos );
+  
+    ); 
+    MIDI_InsertNote( take, 1, 0, notePPQStart, notePPQEnd, chan, cnr, value, 0 );
+  ); 
+
+  selCount < noteCount ? (
+    GetSet_LoopTimeRange2( 0, 0, 0, startOut, endOut, 0 );
+    notePPQStart = MIDI_GetPPQPosFromProjTime( take, startOut );
+    notePPQEnd = MIDI_GetPPQPosFromProjTime( take, endOut );
+  
+    notePPQStart < 1 ? (
+      notePPQStart =MIDI_GetPPQPosFromProjTime( take,  GetCursorPosition(); );
+      //extension_api("BR_GetMidiTakeTempoInfo", take, ignoreProjTempo, bpm, num, den );
+      bpm = Master_GetTempo();
+      noteLength = 60/bpm;
+      noteStart = GetCursorPositionEx(0);
+      notePos =  noteStart + noteLength;
+      notePPQEnd = MIDI_GetPPQPosFromProjTime( take, notePos );
+  
+    ); 
+    MIDI_InsertNote( take, 1, 0, notePPQStart, notePPQEnd, chan, cnr, value, 0 );
+  ); 
+
+  );
+
+  testCval < 1 && testValue < 11080128 ? (  
+    noteCount = noteCount - 1;
+  );
+  );
+
+
+function setup()
+(
+noteCount = 0;
+//time([&val] );
+time_precise(&val[2]);
+
+);
+
+function looper()
+(
+  ToConsole("");
+);
+
+fwInitialize("setup","","onValueIn");
